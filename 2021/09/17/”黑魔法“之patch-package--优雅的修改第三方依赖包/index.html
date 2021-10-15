@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang='zh-CN'>
+
+<head>
+  <meta name="generator" content="Hexo 5.4.0">
+  <meta charset="utf-8">
+  
+
+  <meta http-equiv='x-dns-prefetch-control' content='on' />
+  <link rel='dns-prefetch' href='https://cdn.jsdelivr.net'>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+  <meta name="renderer" content="webkit">
+  <meta name="force-rendering" content="webkit">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+  <meta name="HandheldFriendly" content="True" >
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#f8f8f8">
+  <title>使用“黑魔法”优雅的修改第三方依赖包 - 飞羽</title>
+
+  
+    <meta name="description" content="背景Vue项目中使用的element-ui，由于弹窗里表单项太多，一些表单项会在可视范围之外。校验表单时，如果未通过校验的表单项在可视范围外，用户感知不强。所以需要在表单校验未通过时滚动到第一个未通过校验的表单项那里，翻看element-ui文档，发现未提供该API。 起初想到的方案有两种：  在业务中封装函数，表单校验失败时调用该函数，根据表单校验失败的className，获取第一个校验失败的d">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用“黑魔法”优雅的修改第三方依赖包">
+<meta property="og:url" content="https://feiyu1995.github.io/2021/09/17/%E2%80%9D%E9%BB%91%E9%AD%94%E6%B3%95%E2%80%9C%E4%B9%8Bpatch-package--%E4%BC%98%E9%9B%85%E7%9A%84%E4%BF%AE%E6%94%B9%E7%AC%AC%E4%B8%89%E6%96%B9%E4%BE%9D%E8%B5%96%E5%8C%85/index.html">
+<meta property="og:site_name" content="飞羽">
+<meta property="og:description" content="背景Vue项目中使用的element-ui，由于弹窗里表单项太多，一些表单项会在可视范围之外。校验表单时，如果未通过校验的表单项在可视范围外，用户感知不强。所以需要在表单校验未通过时滚动到第一个未通过校验的表单项那里，翻看element-ui文档，发现未提供该API。 起初想到的方案有两种：  在业务中封装函数，表单校验失败时调用该函数，根据表单校验失败的className，获取第一个校验失败的d">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://pic3.zhuanstatic.com/zhuanzh/61686af1-c58b-4197-b5f2-5b07851f9744.png">
+<meta property="og:image" content="https://pic3.zhuanstatic.com/zhuanzh/26a72591-67eb-4872-af3f-b51ef6cd975d.png">
+<meta property="og:image" content="https://pic2.zhuanstatic.com/zhuanzh/66442427-1db5-4e98-9d80-8548ab253b33.png">
+<meta property="og:image" content="https://pic6.zhuanstatic.com/zhuanzh/2ac30140-85b8-464a-bc30-a3739488c646.png">
+<meta property="article:published_time" content="2021-09-17T12:51:24.840Z">
+<meta property="article:modified_time" content="2021-10-15T12:40:05.946Z">
+<meta property="article:author" content="飞羽">
+<meta property="article:tag" content="依赖包">
+<meta property="article:tag" content="黑魔法">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic3.zhuanstatic.com/zhuanzh/61686af1-c58b-4197-b5f2-5b07851f9744.png">
+  
+  
+
+  <!-- feed -->
+  
+    <link rel="alternate" href="/atom.xml" title="飞羽" type="application/atom+xml">
+  
+
+  
+    
+<link rel="stylesheet" href="/css/main.css">
+
+  
+
+  
+
+  
+</head>
+
+<body>
+  
+
+
+  <div class='l_body' id='start'>
+    <aside class='l_left' layout='post'>
+    
+
+
+<header class="header">
+
+<div class="logo-wrap"><a class="title" href="/"><div class="main">飞羽</div></a></div>
+<nav class="menu dis-select"></nav></header>
+
+<div class="widgets">
+
+<div class="widget-wrap single" id="toc"><div class="widget-header cap dis-select"><span class="name">本文目录</span></div><div class="widget-body fs14"><div class="doc-tree active"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%83%8C%E6%99%AF"><span class="toc-text">背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%BB%91%E9%AD%94%E6%B3%95%E4%B9%8Bpatch-package"><span class="toc-text">黑魔法之patch-package</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#patch-package%E7%9A%84%E5%BA%94%E7%94%A8%E5%9C%BA%E6%99%AF"><span class="toc-text">patch-package的应用场景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#patch-package%E7%9A%84%E4%BD%BF%E7%94%A8"><span class="toc-text">patch-package的使用</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Step1%EF%BC%9A%E5%AE%89%E8%A3%85"><span class="toc-text">Step1：安装</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Step2%EF%BC%9A%E4%BF%AE%E6%94%B9package-json%E6%96%87%E4%BB%B6"><span class="toc-text">Step2：修改package.json文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Step3%EF%BC%9A%E4%BF%AE%E6%94%B9%E4%BE%9D%E8%B5%96%E5%8C%85%E6%BA%90%E7%A0%81"><span class="toc-text">Step3：修改依赖包源码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Step4%EF%BC%9A%E7%94%9F%E6%88%90%E8%A1%A5%E4%B8%81"><span class="toc-text">Step4：生成补丁</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Step5%EF%BC%9A%E6%B5%8B%E8%AF%95%E8%A1%A5%E4%B8%81%E6%98%AF%E5%90%A6%E6%9C%89%E6%95%88"><span class="toc-text">Step5：测试补丁是否有效</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9C%80%E5%90%8E"><span class="toc-text">最后</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E8%80%83%E8%B5%84%E6%96%99"><span class="toc-text">参考资料</span></a></li></ol></div></div></div>
+
+<div class="widget-wrap" id="recent"><div class="widget-header cap dis-select"><span class="name">最近更新</span></div><div class="widget-body fs14"><div class="line"></div><a class="more-item" href="/2021/10/15/demo/"><div class="cap"><time>2021-10-15</time></div><span class="title">demo</span></a><div class="line"></div><a class="more-item" href="/2021/09/17/%E2%80%9D%E9%BB%91%E9%AD%94%E6%B3%95%E2%80%9C%E4%B9%8Bpatch-package--%E4%BC%98%E9%9B%85%E7%9A%84%E4%BF%AE%E6%94%B9%E7%AC%AC%E4%B8%89%E6%96%B9%E4%BE%9D%E8%B5%96%E5%8C%85/"><div class="cap"><time>2021-10-15</time><span>编译相关</span></div><span class="title">使用“黑魔法”优雅的修改第三方依赖包</span></a></div></div>
+</div>
+
+
+    </aside>
+    <div class='l_main'>
+      
+
+      
+
+
+<div class="bread-nav fs12"><div id="breadcrumb"><a class="cap breadcrumb" href="/">飞羽</a><span class="sep"></span><a class="cap breadcrumb" href="/">文章</a><span class="sep"></span><a class="cap breadcrumb-link" href="/categories/%E7%BC%96%E8%AF%91%E7%9B%B8%E5%85%B3/">编译相关</a></div><div id="post-meta">发布于&nbsp;<time datetime="2021-09-17T12:51:24.840Z">2021-09-17</time></div></div>
+
+<article class='content md post'>
+<h1 class="article-title"><span>使用“黑魔法”优雅的修改第三方依赖包</span></h1>
+<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>Vue项目中使用的element-ui，由于弹窗里表单项太多，一些表单项会在可视范围之外。校验表单时，如果未通过校验的表单项在可视范围外，用户感知不强。所以需要在表单校验未通过时滚动到第一个未通过校验的表单项那里，翻看element-ui文档，发现未提供该API。</p>
+<p>起初想到的方案有两种：</p>
+<ol>
+<li>在业务中封装函数，表单校验失败时调用该函数，根据表单校验失败的className，获取第一个校验失败的dom元素，滚动到指定的dom元素位置。但是如果页面存在多个form表单需要做区分，会增加我们的一个工作量，并且不够优雅。</li>
+<li>修改element-ui的源码，增加一个API。但是在平台编译时如果重新执行<code>npm install</code>时代码会被覆盖，并且团队协作时也会遇到这个问题，团队开发中有诸多不便。</li>
+</ol>
+<p>后面经过一顿搜索后，发现一个“黑魔法”的解决方案。并且该方案上手简单、便携、且一劳永逸。</p>
+<h2 id="黑魔法之patch-package"><a href="#黑魔法之patch-package" class="headerlink" title="黑魔法之patch-package"></a>黑魔法之patch-package</h2><p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="https://pic3.zhuanstatic.com/zhuanzh/61686af1-c58b-4197-b5f2-5b07851f9744.png" alt="patch-package"></p>
+<p>先看看官方是怎么介绍的</p>
+<blockquote>
+<p><code>patch-package</code> lets app authors instantly make and keep fixes to npm dependencies. It’s a vital band-aid for those of us living on the bleeding edge.</p>
+<p>Patches created by <code>patch-package</code> are automatically and gracefully applied when you use <code>npm</code>(&gt;=5) or <code>yarn</code>.</p>
+<p>No more waiting around for pull requests to be merged and published. No more forking repos just to fix that one tiny thing preventing your app from working.</p>
+</blockquote>
+<p>总而言之，<code>patch-package</code>给开发者提供了通过打“补丁”的方式，使得重新安装依赖包时能够保留之前对第三方依赖包的修改的一种解决方案。</p>
+<h2 id="patch-package的应用场景"><a href="#patch-package的应用场景" class="headerlink" title="patch-package的应用场景"></a>patch-package的应用场景</h2><p>想想我们在使用第三方依赖包时如果遇到了bug，通常解决的方式都是绕过这个问题，使用其他方式解决，较为麻烦。或者给作者提个issue或者PR，然后等待作者的修复。等待的时间不可控，如果你不想天天被产品、测试后面追着，是不是就可以借助patch-package自己动手去修复该bug，感觉是不是很棒。并且还可以在第三方依赖包上，根据业务需求扩展能力。</p>
+<p>Tip：最好还是扩展一些通用性比较高的能力，如果是比较通用且该能力大多数开发者都有这种诉求的话可以给第三方依赖包提个PR。参与开源项目是不是简单了起来了～（不要在魔改的路上越走越远！！！）</p>
+<h2 id="patch-package的使用"><a href="#patch-package的使用" class="headerlink" title="patch-package的使用"></a>patch-package的使用</h2><h3 id="Step1：安装"><a href="#Step1：安装" class="headerlink" title="Step1：安装"></a>Step1：安装</h3><p><strong>使用npm安装</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm i patch-package</span><br></pre></td></tr></table></figure>
+
+<p><strong>使用yarn安装</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yarn add patch-package postinstall-postinstall</span><br></pre></td></tr></table></figure>
+
+<p>为什么要使用yarn安装需要多安装<code>postinstall-postinstall</code>这个依赖，有兴趣可以看官方解释。<a target="_blank" rel="noopener" href="https://github.com/ds300/patch-package#why-use-postinstall-postinstall-with-yarn">Why use postinstall-postinstall</a></p>
+<h3 id="Step2：修改package-json文件"><a href="#Step2：修改package-json文件" class="headerlink" title="Step2：修改package.json文件"></a>Step2：修改package.json文件</h3><p>package.json的scripts中声明了一系列的npm脚本命令，如下：（参考资料：<a target="_blank" rel="noopener" href="http://caibaojian.com/npm/misc/scripts.html%EF%BC%89">http://caibaojian.com/npm/misc/scripts.html）</a></p>
+<ul>
+<li>prepublish: 在包发布之前运行，也会在npm install安装到本地时运行</li>
+<li>publish,postpublish: 包被发布之后运行</li>
+<li>preinstall: 包被安装前运行</li>
+<li>install,postinstall: 包被安装后运行</li>
+<li>preuninstall,uninstall: 包被卸载前运行</li>
+<li>postuninstall: 包被卸载后运行</li>
+<li>preversion: bump包版本前运行</li>
+<li>postversion: bump包版本后运行</li>
+<li>pretest,test,posttest: 通过npm test命令运行</li>
+<li>prestop,stop,poststop: 通过npm stop命令运行</li>
+<li>prestart,start,poststart: 通过npm start命令运行</li>
+<li>prerestart,restart,postrestart: 通过npm restart运行</li>
+</ul>
+<p>可以看到依赖包在安装完之后会执行postinstall命令</p>
+<p>所以我们在package.json的scripts里面增加：<code>&quot;postinstall&quot;: &quot;patch-package&quot;</code></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">&quot;scripts&quot;: &#123;</span><br><span class="line">    ***,</span><br><span class="line">+   &quot;postinstall&quot;: &quot;patch-package&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Step3：修改依赖包源码"><a href="#Step3：修改依赖包源码" class="headerlink" title="Step3：修改依赖包源码"></a>Step3：修改依赖包源码</h3><p>以element-ui为例：</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="https://pic3.zhuanstatic.com/zhuanzh/26a72591-67eb-4872-af3f-b51ef6cd975d.png" alt="image-20210913202847229"></p>
+<p>我们在<code>element-ui</code>的<code>Button</code>组件上加一个类名<code>button</code>看看</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="https://pic2.zhuanstatic.com/zhuanzh/66442427-1db5-4e98-9d80-8548ab253b33.png" alt="image-20210913203142458"></p>
+<p>通过控制台查看我们的修改已经生效</p>
+<h3 id="Step4：生成补丁"><a href="#Step4：生成补丁" class="headerlink" title="Step4：生成补丁"></a>Step4：生成补丁</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">yarn patch-package package-name(修改的包名)</span><br><span class="line">或者</span><br><span class="line">npx patch-package package-name（npm版本 &gt; 5.2）</span><br></pre></td></tr></table></figure>
+
+<p>这里我们执行<code>npx patch-package element-ui</code>命令看看</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">feiyu@feiyudeMacBook-Pro demo % npx patch-package element-ui</span><br><span class="line">patch-package 6.4.7</span><br><span class="line">patch-package: you have both yarn.lock and package-lock.json</span><br><span class="line">Defaulting to using npm</span><br><span class="line">You can override this setting by passing --use-yarn or deleting</span><br><span class="line">package-lock.json if you don&#x27;t need it</span><br><span class="line"></span><br><span class="line">• Creating temporary folder</span><br><span class="line">• Installing element-ui@2.15.6 with npm</span><br><span class="line">• Diffing your files with clean files</span><br><span class="line">✔ Created file patches/element-ui+2.15.6.patch</span><br><span class="line"></span><br><span class="line">💡 element-ui is on GitHub! To draft an issue based on your patch run</span><br><span class="line"></span><br><span class="line">    npx patch-package element-ui --create-issue</span><br></pre></td></tr></table></figure>
+
+<p>可以看到<code>patch-package</code>已经为我们创建了一个补丁。</p>
+<p>默认会在我们的根目录下创建一个patches文件夹。在patches文件夹下会创建依赖包名+版本号.patch的文件，文件描述了我们修改了什么，第几行，有点像git的提交记录。</p>
+<p><img class="lazy" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAABGdBTUEAALGPC/xhBQAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAAaADAAQAAAABAAAAAQAAAADa6r/EAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=" data-src="https://pic6.zhuanstatic.com/zhuanzh/2ac30140-85b8-464a-bc30-a3739488c646.png" alt="image-20210913203711120"></p>
+<h3 id="Step5：测试补丁是否有效"><a href="#Step5：测试补丁是否有效" class="headerlink" title="Step5：测试补丁是否有效"></a>Step5：测试补丁是否有效</h3><ul>
+<li><p>手动删除node_modules文件夹，重新执行<code>npm install</code>安装依赖包。可以看到在依赖包安装结束后执行了<code>patch-package</code>命令，之前生成的补丁被应用了。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&gt; patch-package</span><br><span class="line"></span><br><span class="line">patch-package 6.4.7</span><br><span class="line">Applying patches...</span><br><span class="line">element-ui@2.15.6 ✔</span><br></pre></td></tr></table></figure></li>
+<li><p>查看node-modules中之前修改的element-ui修改的地方，查看之前修改的代码是否还存在。如果之前修改的代码还存在，说明补丁文件已经生效了，如果不存在，排查下是否哪个步骤出现了问题。</p>
+</li>
+</ul>
+<p><strong>最后将patches文件夹推送到远端仓库，日后无论是谁拉取代码，安装依赖，我们之前修改的部分都会生效的</strong></p>
+<h2 id="注意事项"><a href="#注意事项" class="headerlink" title="注意事项"></a>注意事项</h2><ol>
+<li>patch是锁定版本号的，如果升级了版本，patch内容将会失效，最好在package.json能够锁定版本号。</li>
+<li>魔改的同时，也局限了升级的能力，尽量还是去提issue和PR。</li>
+</ol>
+<h2 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h2><p><code>patch-package</code>还提供了一些额外的参数，有兴趣的话可以查看官方文档。</p>
+<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><p>patch-package-官方：<a target="_blank" rel="noopener" href="https://github.com/ds300/patch-package">https://github.com/ds300/patch-package</a></p>
+<p>npm-scripts文档：<a target="_blank" rel="noopener" href="http://caibaojian.com/npm/misc/scripts.html">http://caibaojian.com/npm/misc/scripts.html</a></p>
+<p>Why use postinstall-postinstall：<a target="_blank" rel="noopener" href="https://github.com/ds300/patch-package#why-use-postinstall-postinstall-with-yarn">https://github.com/ds300/patch-package#why-use-postinstall-postinstall-with-yarn</a></p>
+<p>- END -</p>
+
+
+<div class="article-footer reveal fs14"><section id="license"><div class="header"><span>许可协议</span></div><div class="body"><p>本文采用 <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">署名-非商业性使用-相同方式共享 4.0 国际</a> 许可协议，转载请注明出处。</p>
+</div></section></div>
+
+</article>
+
+<div class="related-wrap reveal" id="read-next"><section class="header cap theme"><span>接下来阅读</span></section><section class="body fs14"><div class="line"></div><a id="prev" href="/2021/10/15/demo/">demo<span class="note">较新</span></a><div class="line"></div><a id="more" href="/archives">检索全部文章</a></section></div>
+
+
+
+
+
+
+
+
+      <div class='float-panel mobile-only blur' style='display:none'>
+  <button type='button' class='sidebar-toggle mobile' onclick='sidebar.toggle()'>
+    <svg class="icon" style="width: 1em; height: 1em;vertical-align: middle;fill: currentColor;overflow: hidden;" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="15301"><path d="M566.407 808.3c26.9-0.1 49.3-20.8 51.6-47.6-1.9-27.7-23.9-49.7-51.6-51.6h-412.6c-28.2-1.4-52.6 19.5-55.5 47.6 2.3 26.8 24.6 47.5 51.6 47.6h416.5v4z m309.3-249.9c26.9-0.1 49.3-20.8 51.6-47.6-2.2-26.8-24.6-47.5-51.6-47.6h-721.9c-27.7-2.8-52.5 17.4-55.3 45.1-0.1 0.8-0.1 1.7-0.2 2.5 0.9 27.2 23.6 48.5 50.7 47.6H875.707z m-103.1-245.9c26.9-0.1 49.3-20.8 51.6-47.6-0.4-28.3-23.2-51.1-51.5-51.6h-618.9c-29.5-1.1-54.3 21.9-55.5 51.4v0.2c1.4 27.8 25.2 49.2 53 47.8 0.8 0 1.7-0.1 2.5-0.2h618.8z" p-id="15302"></path><path d="M566.407 808.3c26.9-0.1 49.3-20.8 51.6-47.6-1.9-27.7-23.9-49.7-51.6-51.6h-412.6c-28.2-1.4-52.6 19.5-55.5 47.6 1.9 27.7 23.9 49.7 51.6 51.6h416.5z m309.3-249.9c26.9-0.1 49.3-20.8 51.6-47.6-2.2-26.8-24.6-47.5-51.6-47.6h-721.9c-27.7-2.8-52.5 17.4-55.3 45.1-0.1 0.8-0.1 1.7-0.2 2.5 0.9 27.2 23.6 48.5 50.7 47.6H875.707z m-103.1-245.9c26.9-0.1 49.3-20.8 51.6-47.6-0.4-28.3-23.2-51.1-51.5-51.6h-618.9c-29.5-1.1-54.3 21.9-55.5 51.4v0.2c1.4 27.8 25.2 49.2 53 47.8 0.8 0 1.7-0.1 2.5-0.2h618.8z" p-id="15303"></path></svg>
+  </button>
+</div>
+
+    </div>
+  </div>
+  <div class='scripts'>
+    <script type="text/javascript">
+  stellar = {
+    // 懒加载 css https://github.com/filamentgroup/loadCSS
+    loadCSS: (href, before, media, attributes) => {
+      var doc = window.document;
+      var ss = doc.createElement("link");
+      var ref;
+      if (before) {
+        ref = before;
+      } else {
+        var refs = (doc.body || doc.getElementsByTagName("head")[0]).childNodes;
+        ref = refs[refs.length - 1];
+      }
+      var sheets = doc.styleSheets;
+      if (attributes) {
+        for (var attributeName in attributes) {
+          if (attributes.hasOwnProperty(attributeName)) {
+            ss.setAttribute(attributeName, attributes[attributeName]);
+          }
+        }
+      }
+      ss.rel = "stylesheet";
+      ss.href = href;
+      ss.media = "only x";
+      function ready(cb) {
+        if (doc.body) {
+          return cb();
+        }
+        setTimeout(function () {
+          ready(cb);
+        });
+      }
+      ready(function () {
+        ref.parentNode.insertBefore(ss, before ? ref : ref.nextSibling);
+      });
+      var onloadcssdefined = function (cb) {
+        var resolvedHref = ss.href;
+        var i = sheets.length;
+        while (i--) {
+          if (sheets[i].href === resolvedHref) {
+            return cb();
+          }
+        }
+        setTimeout(function () {
+          onloadcssdefined(cb);
+        });
+      };
+      function loadCB() {
+        if (ss.addEventListener) {
+          ss.removeEventListener("load", loadCB);
+        }
+        ss.media = media || "all";
+      }
+      if (ss.addEventListener) {
+        ss.addEventListener("load", loadCB);
+      }
+      ss.onloadcssdefined = onloadcssdefined;
+      onloadcssdefined(loadCB);
+      return ss;
+    },
+
+    // 从 butterfly 和 volantis 获得灵感
+    loadScript: (src, opt) => new Promise((resolve, reject) => {
+      var script = document.createElement('script');
+      script.src = src;
+      if (opt) {
+        for (let key of Object.keys(opt)) {
+          script[key] = opt[key]
+        }
+      } else {
+        // 默认异步，如果需要同步，第二个参数传入 {} 即可
+        script.async = true
+      }
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    }),
+
+    // https://github.com/jerryc127/hexo-theme-butterfly
+    jQuery: (fn) => {
+      if (typeof jQuery === 'undefined') {
+        stellar.loadScript(stellar.plugins.jQuery).then(fn)
+      } else {
+        fn()
+      }
+    }
+  };
+  stellar.github = 'https://github.com/xaoxuu/hexo-theme-stellar/tree/1.5.1';
+  stellar.config = {
+    date_suffix: {
+      just: '刚刚',
+      min: '分钟前',
+      hour: '小时前',
+      day: '天前',
+      month: '个月前',
+    },
+  };
+
+  // required plugins (only load if needs)
+  stellar.plugins = {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js',
+    sitesjs: '/js/plugins/sites.js',
+    friendsjs: '/js/plugins/friends.js',
+  };
+
+  // optional plugins
+  if ('true' == 'true') {
+    stellar.plugins.lazyload = Object.assign({"enable":true,"js":"https://cdn.jsdelivr.net/npm/vanilla-lazyload@17.3.1/dist/lazyload.min.js","transition":"blur"});
+  }
+  if ('true' == 'true') {
+    stellar.plugins.swiper = Object.assign({"enable":true,"css":"https://unpkg.com/swiper/swiper-bundle.min.css","js":"https://unpkg.com/swiper/swiper-bundle.min.js"});
+  }
+  if ('' == 'true') {
+    stellar.plugins.scrollreveal = Object.assign({"enable":null,"js":"https://cdn.jsdelivr.net/npm/scrollreveal@4.0.9/dist/scrollreveal.min.js","distance":"8px","duration":500,"interval":100,"scale":1});
+  }
+  if ('true' == 'true') {
+    stellar.plugins.preload = Object.assign({"enable":true,"service":"flying_pages","instant_page":"https://cdn.jsdelivr.net/gh/volantis-x/cdn-volantis@4.1.2/js/instant_page.js","flying_pages":"https://cdn.jsdelivr.net/gh/gijo-varghese/flying-pages@2.1.2/flying-pages.min.js"});
+  }
+</script>
+
+<!-- required -->
+
+  
+<script src="/js/main.js" async></script>
+
+
+
+<!-- optional -->
+
+
+
+<!-- inject -->
+
+
+  </div>
+</body>
+</html>
